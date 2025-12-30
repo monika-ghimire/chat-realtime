@@ -5,43 +5,49 @@ import { socket } from "@/lb/socketClient";
 import ChatForm from "../components/ChatForm";
 import ChatMessage from "../components/ChatMessage";
 
+type Message = { sender: string; message: string };
+
 export default function Home() {
   const [room, setRoom] = useState("");
   const [joined, setJoined] = useState(false);
   const [userName, setUserName] = useState("");
-  const [messages, setMessages] = useState<
-    { sender: string; message: string }[]
-  >([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [activeUsers, setActiveUsers] = useState<
     { username: string; room: string; socketId: string }[]
   >([]);
   const [privateChatUser, setPrivateChatUser] = useState<string | null>(null);
   const [mainRoom, setMainRoom] = useState("");
+  const [privateChats, setPrivateChats] = useState<Record<string, Message[]>>({});
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
-  useEffect(() => {
-  socket.on("active_users", (users) => setActiveUsers(users));
-  socket.on("message", (data) => setMessages((prev) => [...prev, data]));
-  socket.on("private-message", (data) => setMessages((prev) => [...prev, data]));
-  socket.on("user_joined", (msg) => setMessages((prev) => [...prev, { sender: "system", message: msg }]));
-
-  return () => {
-    socket.off("active_users");
-    socket.off("message");
-    socket.off("private-message");
-    socket.off("user_joined");
-  };
-}, []);
-
-
-
-  // socket listeners
+  // Socket listeners
   useEffect(() => {
     socket.on("active_users", (users) => setActiveUsers(users));
-    socket.on("message", (data) => setMessages((prev) => [...prev, data]));
-    socket.on("private-message", (data) =>
-      setMessages((prev) => [...prev, data])
-    );
-    socket.on("user_joined", (msg) =>
+
+    socket.on("message", (data: Message) => {
+      setMessages((prev) => [...prev, data]);
+    });
+
+    socket.on("private-message", ({ sender, message }: Message) => {
+      // Add message to private chat history
+      setPrivateChats((prev) => {
+        const chat = prev[sender] || [];
+        return { ...prev, [sender]: [...chat, { sender, message }] };
+      });
+
+      // If currently chatting with this user, show in chat
+      if (sender === privateChatUser) {
+        setMessages((prev) => [...prev, { sender, message }]);
+      } else {
+        // Increment unread count
+        setUnreadCounts((prev) => ({
+          ...prev,
+          [sender]: (prev[sender] || 0) + 1,
+        }));
+      }
+    });
+
+    socket.on("user_joined", (msg: string) =>
       setMessages((prev) => [...prev, { sender: "system", message: msg }])
     );
 
@@ -51,7 +57,7 @@ export default function Home() {
       socket.off("private-message");
       socket.off("user_joined");
     };
-  }, []);
+  }, [privateChatUser]);
 
   const handleJoinRoom = () => {
     if (room && userName) {
@@ -61,7 +67,6 @@ export default function Home() {
     }
   };
 
-  // click user → start private chat (new room)
   const handlePrivateChat = (targetUser: string) => {
     if (!targetUser) return;
 
@@ -70,7 +75,12 @@ export default function Home() {
 
     setRoom(privateRoom);
     setPrivateChatUser(targetUser);
-    setMessages([]); // clear previous messages
+
+    // Load chat history
+    setMessages(privateChats[targetUser] || []);
+
+    // Reset unread count
+    setUnreadCounts((prev) => ({ ...prev, [targetUser]: 0 }));
   };
 
   const handleSendMessage = (message: string) => {
@@ -84,6 +94,16 @@ export default function Home() {
         toSocketId: targetUser.socketId,
         message,
       });
+
+      // Add to local chat
+      setPrivateChats((prev) => {
+        const chat = prev[privateChatUser] || [];
+        return {
+          ...prev,
+          [privateChatUser]: [...chat, { sender: userName, message }],
+        };
+      });
+
       setMessages((prev) => [...prev, { sender: userName, message }]);
     } else {
       socket.emit("message", { room, message, sender: userName });
@@ -100,7 +120,6 @@ export default function Home() {
   return (
     <div className="flex mt-24 justify-center w-full">
       {!joined ? (
-        // Join form
         <div className="flex w-full max-w-md flex-col items-center bg-gray-100 p-6 rounded-lg">
           <h1 className="mb-4 text-2xl font-bold">Join a Room</h1>
           <input
@@ -125,7 +144,6 @@ export default function Home() {
           </button>
         </div>
       ) : (
-        // Chat UI
         <div className="flex gap-4 w-full max-w-6xl">
           {/* Active users sidebar */}
           <div className="w-1/4 bg-gray-100 p-3 rounded-lg">
@@ -136,9 +154,14 @@ export default function Home() {
                 <div
                   key={user.socketId}
                   onClick={() => handlePrivateChat(user.username)}
-                  className="cursor-pointer p-2 hover:bg-blue-200 rounded"
+                  className="cursor-pointer p-2 hover:bg-blue-200 rounded flex justify-between"
                 >
-                  {user.username}
+                  <span>{user.username}</span>
+                  {unreadCounts[user.username] ? (
+                    <span className="text-sm text-white bg-red-500 px-2 rounded">
+                      {unreadCounts[user.username]}
+                    </span>
+                  ) : null}
                 </div>
               ))}
           </div>

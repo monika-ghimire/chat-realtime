@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import ChatForm from "./components/ChatForm";
-import Image from "next/image";
-import ChatMessage from "./components/ChatMessage";
+import { useEffect, useState } from "react";
+import ChatForm from "../components/ChatForm";
+import ChatMessage from "../components/ChatMessage";
+import { socket } from "@/lb/socketClient";
 
 export default function Home() {
   const [room, setRoom] = useState("");
@@ -13,13 +13,41 @@ export default function Home() {
   >([]);
   const [userName, setUserName] = useState("");
 
-  const handleSendMessage = (message: string) => {
-    console.log(message);
+  useEffect(() => {
+  socket.on("user_joined", (message) => {
+    setMessages((prev) => [
+      ...prev,
+      { sender: "system", message },
+    ]);
+  });
+
+  socket.on("message", (data) => {
+    setMessages((prev) => [...prev, data]);
+  });
+
+  return () => {
+    socket.off("user_joined");
+    socket.off("message");
+  };
+}, []);
+
+
+  const handleJoinRoom = () => {
+    if (room && userName) {
+      socket.emit("join-room", { room, username: userName });
+      setJoined(true);
+    }
   };
 
-  const handleJoinRoom =()=> {
-    setJoined(true);
-  }
+  const handleSendMessage = (message: string) => {
+  const data = { room, message, sender: userName };
+
+  socket.emit("message", data); 
+
+  setMessages((prev) => [...prev, data]); // show own message instantly
+};
+
+
   return (
     <>
       <div className="flex mt-24 justify-center w-full">
@@ -38,7 +66,7 @@ export default function Home() {
               type="text"
               placeholder="Enter room name"
               value={room}
-              onChange={(e) => setUserName(e.target.value)}
+              onChange={(e) => setRoom(e.target.value)}
               className="w-64 px-4 py-2 mb-4 border-2 rounded-lg"
             />
 
@@ -51,7 +79,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="w-full mxa-w-3xl mx-auto">
-            <h1 className="mb-4 text-2xl font-bold">Room: 1</h1>
+            <h1 className="mb-4 text-2xl font-bold">Room: {room}</h1>
             <div className="h-[500px] overflow-y-auto p-4 mb-4 bg-gray-200 border-1 rounded-lg">
               {messages.map((mgs, index) => (
                 <ChatMessage

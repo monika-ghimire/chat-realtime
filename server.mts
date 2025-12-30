@@ -2,6 +2,14 @@ import { createServer } from "node:http";
 import next from "next";
 import { Server } from "socket.io";
 
+type User = {
+  username: string;
+  room: string;
+  socketId: string;
+};
+
+const users: Record<string, User> = {};
+
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME || "localhost";
 const port = parseInt(process.env.PORT || "3000", 10);
@@ -12,31 +20,46 @@ const handle = app.getRequestHandler();
 app.prepare().then(() => {
   const httpServer = createServer(handle);
 
-  const io = new Server(httpServer);
+  const io = new Server(httpServer, {
+    cors: { origin: "*", methods: ["GET", "POST"] },
+  });
 
   io.on("connection", (socket) => {
     console.log(`✅ user connected: ${socket.id}`);
 
-    socket.on("join-room", ({room , username}) => {
-    socket.join(room);
-    console.log(`user ${username} joined room ${room}`);
-    socket.to(room).emit("user_joined", `${username} joined room`);
-  });
+    // Send current active users immediately on connect
+    socket.emit("active_users", Object.values(users));
 
-    socket.on("message", ({room , message , sender}) => {
-      console.log(`message from ${sender} in room ${room} : ${message}`)
-    socket.to(room).emit("message", {sender, message});
-  });
+    // Join room
+    socket.on("join-room", ({ room, username }) => {
+      users[socket.id] = { username, room, socketId: socket.id };
+      socket.join(room);
 
+      // Emit updated active users to everyone
+      io.emit("active_users", Object.values(users));
+
+      socket.to(room).emit("user_joined", `${username} joined room`);
+    });
+
+    // Private message
+    socket.on("private-message", ({ toSocketId, message }) => {
+      const sender = users[socket.id]?.username;
+      if (!sender) return;
+      io.to(toSocketId).emit("private-message", { sender, message });
+    });
+
+    // Disconnect
     socket.on("disconnect", () => {
-    console.log(`user disconnect: ${socket.id}`);
+      const user = users[socket.id];
+      delete users[socket.id];
+
+      io.emit("active_users", Object.values(users));
+
+      if (user) socket.to(user.room).emit("user_left", `${user.username} left room`);
+      console.log(`❌ user disconnected: ${socket.id}`);
+    });
   });
 
-  });
-
-  
-
-  
   httpServer.listen(port, () => {
     console.log(`🚀 server running on http://${hostname}:${port}`);
   });

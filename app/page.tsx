@@ -1,99 +1,180 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { socket } from "@/lb/socketClient";
 import ChatForm from "../components/ChatForm";
 import ChatMessage from "../components/ChatMessage";
-import { socket } from "@/lb/socketClient";
 
 export default function Home() {
   const [room, setRoom] = useState("");
   const [joined, setJoined] = useState(false);
+  const [userName, setUserName] = useState("");
   const [messages, setMessages] = useState<
     { sender: string; message: string }[]
   >([]);
-  const [userName, setUserName] = useState("");
+  const [activeUsers, setActiveUsers] = useState<
+    { username: string; room: string; socketId: string }[]
+  >([]);
+  const [privateChatUser, setPrivateChatUser] = useState<string | null>(null);
+  const [mainRoom, setMainRoom] = useState("");
 
   useEffect(() => {
-  socket.on("user_joined", (message) => {
-    setMessages((prev) => [
-      ...prev,
-      { sender: "system", message },
-    ]);
-  });
-
-  socket.on("message", (data) => {
-    setMessages((prev) => [...prev, data]);
-  });
+  socket.on("active_users", (users) => setActiveUsers(users));
+  socket.on("message", (data) => setMessages((prev) => [...prev, data]));
+  socket.on("private-message", (data) => setMessages((prev) => [...prev, data]));
+  socket.on("user_joined", (msg) => setMessages((prev) => [...prev, { sender: "system", message: msg }]));
 
   return () => {
-    socket.off("user_joined");
+    socket.off("active_users");
     socket.off("message");
+    socket.off("private-message");
+    socket.off("user_joined");
   };
 }, []);
 
+
+
+  // socket listeners
+  useEffect(() => {
+    socket.on("active_users", (users) => setActiveUsers(users));
+    socket.on("message", (data) => setMessages((prev) => [...prev, data]));
+    socket.on("private-message", (data) =>
+      setMessages((prev) => [...prev, data])
+    );
+    socket.on("user_joined", (msg) =>
+      setMessages((prev) => [...prev, { sender: "system", message: msg }])
+    );
+
+    return () => {
+      socket.off("active_users");
+      socket.off("message");
+      socket.off("private-message");
+      socket.off("user_joined");
+    };
+  }, []);
 
   const handleJoinRoom = () => {
     if (room && userName) {
       socket.emit("join-room", { room, username: userName });
       setJoined(true);
+      setMainRoom(room);
     }
   };
 
+  // click user → start private chat (new room)
+  const handlePrivateChat = (targetUser: string) => {
+    if (!targetUser) return;
+
+    const privateRoom = [userName, targetUser].sort().join("_");
+    socket.emit("join-room", { room: privateRoom, username: userName });
+
+    setRoom(privateRoom);
+    setPrivateChatUser(targetUser);
+    setMessages([]); // clear previous messages
+  };
+
   const handleSendMessage = (message: string) => {
-  const data = { room, message, sender: userName };
+    if (privateChatUser) {
+      const targetUser = activeUsers.find(
+        (u) => u.username === privateChatUser
+      );
+      if (!targetUser) return;
 
-  socket.emit("message", data); 
+      socket.emit("private-message", {
+        toSocketId: targetUser.socketId,
+        message,
+      });
+      setMessages((prev) => [...prev, { sender: userName, message }]);
+    } else {
+      socket.emit("message", { room, message, sender: userName });
+      setMessages((prev) => [...prev, { sender: userName, message }]);
+    }
+  };
 
-  setMessages((prev) => [...prev, data]); // show own message instantly
-};
-
+  const handleBackToRoom = () => {
+    setPrivateChatUser(null);
+    setRoom(mainRoom);
+    setMessages([]);
+  };
 
   return (
-    <>
-      <div className="flex mt-24 justify-center w-full">
-        {!joined ? (
-          <div className="flex w-full max-w-3xl flex-col items-center">
-            <h1 className="mb-4 text-2xl font-bold"> Join a Room</h1>
-            <input
-              type="text"
-              placeholder="Enter Your Username"
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-              className="w-64 px-4 py-2 mb-4 border-2 rounded-lg"
-            />
-
-            <input
-              type="text"
-              placeholder="Enter room name"
-              value={room}
-              onChange={(e) => setRoom(e.target.value)}
-              className="w-64 px-4 py-2 mb-4 border-2 rounded-lg"
-            />
-
-            <button
-              onClick={handleJoinRoom}
-              className="px-4 py-2 text-white bg-blue-500 rounded-lg"
-            >
-              Join Room
-            </button>
+    <div className="flex mt-24 justify-center w-full">
+      {!joined ? (
+        // Join form
+        <div className="flex w-full max-w-md flex-col items-center bg-gray-100 p-6 rounded-lg">
+          <h1 className="mb-4 text-2xl font-bold">Join a Room</h1>
+          <input
+            type="text"
+            placeholder="Enter your username"
+            value={userName}
+            onChange={(e) => setUserName(e.target.value)}
+            className="w-full px-4 py-2 mb-4 border rounded-lg"
+          />
+          <input
+            type="text"
+            placeholder="Enter room name"
+            value={room}
+            onChange={(e) => setRoom(e.target.value)}
+            className="w-full px-4 py-2 mb-4 border rounded-lg"
+          />
+          <button
+            onClick={handleJoinRoom}
+            className="w-full px-4 py-2 text-white bg-blue-500 rounded-lg"
+          >
+            Join Room
+          </button>
+        </div>
+      ) : (
+        // Chat UI
+        <div className="flex gap-4 w-full max-w-6xl">
+          {/* Active users sidebar */}
+          <div className="w-1/4 bg-gray-100 p-3 rounded-lg">
+            <h2 className="font-bold mb-2">Active Users</h2>
+            {activeUsers
+              .filter((u) => u.username !== userName)
+              .map((user) => (
+                <div
+                  key={user.socketId}
+                  onClick={() => handlePrivateChat(user.username)}
+                  className="cursor-pointer p-2 hover:bg-blue-200 rounded"
+                >
+                  {user.username}
+                </div>
+              ))}
           </div>
-        ) : (
-          <div className="w-full max-w-3xl mx-auto">
-            <h1 className="mb-4 text-2xl font-bold">Room: {room}</h1>
-            <div className="h-[500px] overflow-y-auto p-4 mb-4 bg-gray-200 border-1 rounded-lg">
-              {messages.map((mgs, index) => (
+
+          {/* Chat area */}
+          <div className="w-3/4">
+            <h1 className="mb-2 text-xl font-bold">
+              {privateChatUser
+                ? `Private chat with ${privateChatUser}`
+                : `Room: ${room}`}
+            </h1>
+
+            {privateChatUser && (
+              <button
+                onClick={handleBackToRoom}
+                className="mb-2 px-3 py-1 text-white bg-blue-400 rounded"
+              >
+                Back to Room
+              </button>
+            )}
+
+            <div className="h-[500px] overflow-y-auto p-4 mb-4 bg-gray-200 rounded-lg">
+              {messages.map((msg, i) => (
                 <ChatMessage
-                  key={index}
-                  sender={mgs.sender}
-                  message={mgs.message}
-                  isOwnMessage={mgs.sender === userName}
+                  key={i}
+                  sender={msg.sender}
+                  message={msg.message}
+                  isOwnMessage={msg.sender === userName}
                 />
               ))}
             </div>
+
             <ChatForm onSendMessage={handleSendMessage} />
           </div>
-        )}
-      </div>
-    </>
+        </div>
+      )}
+    </div>
   );
 }

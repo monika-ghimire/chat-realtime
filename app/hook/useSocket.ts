@@ -32,26 +32,27 @@ export const useSocket = (userName: string, initialRoom: string = "") => {
       setMessages((prev) => [...prev, data]);
     });
 
-    socket.on(
-      "private-message",
-      ({ sender, message, timestamp }: Message) => {
-        // Save to private chat
-        setPrivateChats((prev) => {
-          const chat = prev[sender] || [];
-          return { ...prev, [sender]: [...chat, { sender, message, timestamp }] };
-        });
+    socket.on("room-message", (msg) => {
+      setMessages((prev) => [...prev, msg]);
+    });
 
-        // Show in current chat or increment unread count
-        if (sender === privateChatUser) {
-          setMessages((prev) => [...prev, { sender, message, timestamp }]);
-        } else {
-          setUnreadCounts((prev) => ({
-            ...prev,
-            [sender]: (prev[sender] || 0) + 1,
-          }));
-        }
+    socket.on("private-message", ({ sender, message, timestamp }: Message) => {
+      // Save to private chat
+      setPrivateChats((prev) => {
+        const chat = prev[sender] || [];
+        return { ...prev, [sender]: [...chat, { sender, message, timestamp }] };
+      });
+
+      // Show in current chat or increment unread count
+      if (sender === privateChatUser) {
+        setMessages((prev) => [...prev, { sender, message, timestamp }]);
+      } else {
+        setUnreadCounts((prev) => ({
+          ...prev,
+          [sender]: (prev[sender] || 0) + 1,
+        }));
       }
-    );
+    });
 
     socket.on("user_joined", (msg: string) => {
       setMessages((prev) => [
@@ -98,33 +99,44 @@ export const useSocket = (userName: string, initialRoom: string = "") => {
   };
 
   // === Send a message ===
-  const sendMessage = (message: string) => {
-    const timestamp = new Date().toISOString();
 
-    if (privateChatUser) {
-      const targetUser = activeUsers.find((u) => u.username === privateChatUser);
-      if (!targetUser) return;
+const sendMessage = (message: string) => {
+  const timestamp = new Date().toISOString();
 
-      socket.emit("private-message", {
-        toSocketId: targetUser.socketId,
-        message,
-        timestamp,
-      });
+  if (privateChatUser) {
+    const targetUser = activeUsers.find(
+      (u) => u.username === privateChatUser
+    );
+    if (!targetUser) return;
 
-      setPrivateChats((prev) => {
-        const chat = prev[privateChatUser] || [];
-        return {
-          ...prev,
-          [privateChatUser]: [...chat, { sender: userName, message, timestamp }],
-        };
-      });
+    socket.emit("private-message", {
+      toSocketId: targetUser.socketId,
+      message,
+      timestamp,
+    });
 
-      setMessages((prev) => [...prev, { sender: userName, message, timestamp }]);
-    } else {
-      socket.emit("message", { room, message, sender: userName, timestamp });
-      setMessages((prev) => [...prev, { sender: userName, message, timestamp }]);
-    }
-  };
+    setPrivateChats((prev) => {
+      const chat = prev[privateChatUser] || [];
+      return {
+        ...prev,
+        [privateChatUser]: [
+          ...chat,
+          { sender: userName, message, timestamp },
+        ],
+      };
+    });
+
+    setMessages((prev) => [
+      ...prev,
+      { sender: userName, message, timestamp },
+    ]);
+  } else {
+   
+     socket.emit("room-message", { message })
+   
+  }
+};
+
 
   // === Start private chat ===
   const startPrivateChat = (targetUser: string) => {

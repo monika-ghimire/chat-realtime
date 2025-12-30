@@ -38,7 +38,7 @@ export default function Home() {
   }, [messages]);
 
   return (
-    <div className="flex mt-24 justify-center w-full">
+    <div className="flex xl:mt-24 justify-center w-full">
       {!joined ? (
         <div className="flex w-full max-w-md flex-col items-center bg-gray-100 p-6 rounded-lg">
           <h1 className="mb-4 text-2xl font-bold">Join a Room</h1>
@@ -64,21 +64,27 @@ export default function Home() {
           </button>
         </div>
       ) : (
-        <div className="flex flex-col md:flex-row gap-4 w-full max-w-6xl ">
+        <div className="flex flex-col md:flex-row gap-6 xl:gap-8 w-full max-w-6xl ">
           {/* Active Users Sidebar */}
-          <div className="w-full md:w-1/4 bg-gray-100 p-3 rounded-lg h-[80vh]">
-            <h2 className="font-bold mb-2">Active Users </h2>
+          <div className="w-full xl:w-1/4 bg-gray-50 p-3 rounded-lg xl:h-[80vh]">
+            <div className="bg-gray-200 rounded-lg py-4 px-10 flex items-center  gap-1">
+              <UserNameIcon name={userName} />
+
+             <h1 className="uppercase"> {userName}</h1> 
+            </div>
+            <h2 className="font-bold my-4">Active Users </h2>
+            <div className="flex flex-row md:flex-col">
             {activeUsers
               .filter((u) => u.username !== userName)
               .map((user) => (
                 <div
                   key={user.socketId}
                   onClick={() => startPrivateChat(user.username)}
-                  className="cursor-pointer p-2 hover:bg-blue-200 rounded flex justify-between items-center transition-colors duration-200"
+                  className="cursor-pointer p-2 border-gray-100 hover:bg-blue-200 rounded flex justify-between items-center transition-colors duration-200"
                 >
                   <div className="flex items-center gap-2">
                     <UserNameIcon name={user.username} />
-                    <span>{user.username}</span>
+                    <span className="capitalize hidden md:flex">{user.username}</span>
                   </div>
                   {unreadCounts[user.username] ? (
                     <span className="text-xs font-bold text-white bg-green-400 text-center h-[17px] w-[17px] rounded-full">
@@ -87,10 +93,11 @@ export default function Home() {
                   ) : null}
                 </div>
               ))}
+              </div>
           </div>
 
           {/* Chat Area */}
-          <div className="w-full md:w-3/4 flex flex-col">
+          <div className="w-full lg:w-3/4 flex flex-col">
             <h1 className="mb-2 text-xl font-bold">
               {privateChatUser
                 ? `Private chat with ${privateChatUser}`
@@ -106,9 +113,12 @@ export default function Home() {
               </button>
             )}
 
-            <div className="h-[60vh] overflow-y-auto p-4 mb-2 bg-gray-200 rounded-lg flex flex-col gap-2">
-              
-              {!privateChatUser && <h1 className="text-xs w-fit bg-green-200 text-green-500 py-2 px-8">Join Room :<strong> {room}</strong></h1> }
+            <div className=" h-[40vh] lg:h-[60vh] overflow-y-auto p-4 mb-2 bg-gray-200 rounded-lg flex flex-col gap-2">
+              {!privateChatUser && (
+                <h1 className="text-xs w-fit bg-green-200 text-green-500 py-2 px-8">
+                  Join Room :<strong> {room}</strong>
+                </h1>
+              )}
 
               {messages.map((msg, i) => (
                 <div
@@ -134,7 +144,7 @@ export default function Home() {
               {/* Scroll anchor */}
               <div ref={messagesEndRef} />
             </div>
-               
+
             <ChatForm onSendMessage={sendMessage} />
           </div>
         </div>

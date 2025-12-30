@@ -53,6 +53,20 @@ app.prepare().then(() => {
       if (!user) return;
       socket.to(user.room).emit("stop_typing", user.username);
     });
+    
+   socket.on("room-message", ({ message }) => {
+  const user = users[socket.id];
+  if (!user) return;
+
+  const payload = {
+    sender: user.username,
+    message,
+    timestamp: new Date().toISOString(),
+  };
+
+  // Send to everyone in the room INCLUDING sender
+  io.to(user.room).emit("room-message", payload);
+});
 
     // Private message
     socket.on("private-message", ({ toSocketId, message }) => {

@@ -6,6 +6,7 @@ type User = {
   username: string;
   room: string;
   socketId: string;
+  timestamp: string;
 };
 
 const users: Record<string, User> = {};
@@ -31,8 +32,8 @@ app.prepare().then(() => {
     socket.emit("active_users", Object.values(users));
 
     // Join room
-    socket.on("join-room", ({ room, username }) => {
-      users[socket.id] = { username, room, socketId: socket.id };
+    socket.on("join-room", ({ room, username ,  timestamp  }) => {
+      users[socket.id] = { username, room, socketId: socket.id ,  timestamp  };
       socket.join(room);
 
       // Emit updated active users to everyone

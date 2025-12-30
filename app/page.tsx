@@ -97,6 +97,7 @@ export default function Home() {
                   key={i}
                   sender={msg.sender}
                   message={msg.message}
+                  timestamp={msg.timestamp} 
                   isOwnMessage={msg.sender === userName}
                 />
               ))}

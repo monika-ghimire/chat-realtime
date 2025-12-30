@@ -3,8 +3,13 @@
 import { useEffect, useState } from "react";
 import { socket } from "@/lb/socketClient";
 
-type Message = { sender: string; message: string };
-type ActiveUser = { username: string; room: string; socketId: string };
+export type Message = {
+  sender: string;
+  message: string;
+  timestamp: string;
+};
+
+export type ActiveUser = { username: string; room: string; socketId: string };
 
 export const useSocket = (userName: string, initialRoom: string = "") => {
   const [room, setRoom] = useState(initialRoom);
@@ -19,6 +24,7 @@ export const useSocket = (userName: string, initialRoom: string = "") => {
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
 
+  // === Socket listeners for messages & users ===
   useEffect(() => {
     socket.on("active_users", (users: ActiveUser[]) => setActiveUsers(users));
 
@@ -26,25 +32,33 @@ export const useSocket = (userName: string, initialRoom: string = "") => {
       setMessages((prev) => [...prev, data]);
     });
 
-    socket.on("private-message", ({ sender, message }: Message) => {
-      setPrivateChats((prev) => {
-        const chat = prev[sender] || [];
-        return { ...prev, [sender]: [...chat, { sender, message }] };
-      });
+    socket.on(
+      "private-message",
+      ({ sender, message, timestamp }: Message) => {
+        // Save to private chat
+        setPrivateChats((prev) => {
+          const chat = prev[sender] || [];
+          return { ...prev, [sender]: [...chat, { sender, message, timestamp }] };
+        });
 
-      if (sender === privateChatUser) {
-        setMessages((prev) => [...prev, { sender, message }]);
-      } else {
-        setUnreadCounts((prev) => ({
-          ...prev,
-          [sender]: (prev[sender] || 0) + 1,
-        }));
+        // Show in current chat or increment unread count
+        if (sender === privateChatUser) {
+          setMessages((prev) => [...prev, { sender, message, timestamp }]);
+        } else {
+          setUnreadCounts((prev) => ({
+            ...prev,
+            [sender]: (prev[sender] || 0) + 1,
+          }));
+        }
       }
-    });
-
-    socket.on("user_joined", (msg: string) =>
-      setMessages((prev) => [...prev, { sender: "system", message: msg }])
     );
+
+    socket.on("user_joined", (msg: string) => {
+      setMessages((prev) => [
+        ...prev,
+        { sender: "system", message: msg, timestamp: new Date().toISOString() },
+      ]);
+    });
 
     return () => {
       socket.off("active_users");
@@ -54,6 +68,7 @@ export const useSocket = (userName: string, initialRoom: string = "") => {
     };
   }, [privateChatUser]);
 
+  // === Typing indicators ===
   useEffect(() => {
     socket.on("typing", (username: string) => {
       setTypingUsers((prev) => {
@@ -70,8 +85,9 @@ export const useSocket = (userName: string, initialRoom: string = "") => {
       socket.off("typing");
       socket.off("stop_typing");
     };
-  }, []); 
+  }, []);
 
+  // === Join a room ===
   const joinRoom = (roomName: string) => {
     if (!roomName || !userName) return;
 
@@ -81,33 +97,36 @@ export const useSocket = (userName: string, initialRoom: string = "") => {
     setJoined(true);
   };
 
+  // === Send a message ===
   const sendMessage = (message: string) => {
+    const timestamp = new Date().toISOString();
+
     if (privateChatUser) {
-      const targetUser = activeUsers.find(
-        (u) => u.username === privateChatUser
-      );
+      const targetUser = activeUsers.find((u) => u.username === privateChatUser);
       if (!targetUser) return;
 
       socket.emit("private-message", {
         toSocketId: targetUser.socketId,
         message,
+        timestamp,
       });
 
       setPrivateChats((prev) => {
         const chat = prev[privateChatUser] || [];
         return {
           ...prev,
-          [privateChatUser]: [...chat, { sender: userName, message }],
+          [privateChatUser]: [...chat, { sender: userName, message, timestamp }],
         };
       });
 
-      setMessages((prev) => [...prev, { sender: userName, message }]);
+      setMessages((prev) => [...prev, { sender: userName, message, timestamp }]);
     } else {
-      socket.emit("message", { room, message, sender: userName });
-      setMessages((prev) => [...prev, { sender: userName, message }]);
+      socket.emit("message", { room, message, sender: userName, timestamp });
+      setMessages((prev) => [...prev, { sender: userName, message, timestamp }]);
     }
   };
 
+  // === Start private chat ===
   const startPrivateChat = (targetUser: string) => {
     if (!targetUser) return;
 
@@ -120,6 +139,7 @@ export const useSocket = (userName: string, initialRoom: string = "") => {
     setUnreadCounts((prev) => ({ ...prev, [targetUser]: 0 }));
   };
 
+  // === Back to main room ===
   const backToMainRoom = () => {
     setPrivateChatUser(null);
     setRoom(mainRoom);

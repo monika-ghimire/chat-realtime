@@ -1,4 +1,5 @@
 import React from "react";
+import UserNameIcon from "@/components/UserNameIcon";
 
 interface ChatMessage {
   sender: string;
@@ -26,26 +27,39 @@ function ChatMessage({
       }
     mb-3`}
     >
-      <div
-        className={`max-w-xs px-4 py-2 rounded-lg ${
-          isSystemMessage
-            ? "bg-gray-800 text-white text-center text-xs"
-            : isOwnMessage
-            ? "bg-blue-500 text-white"
-            : "bg-white text-black"
-        }`}
-      >
-        {!isSystemMessage && <p className="text-sm font-bold">{sender}</p>}
-        <p>{message}</p>
+      <section className={`flex   ${
+        !isSystemMessage ? 'flex-col items-end' : 'flex-row  items-center gap-4 '}`}>
+
+          
+          
+
+        <div className="flex gap-4 items-center">
+          {!isOwnMessage && !isSystemMessage && <UserNameIcon name={sender} />}
+               
+          <div
+            className={`max-w-xs px-4 py-2 rounded-lg ${
+              isSystemMessage
+                ? "bg-gray-800 text-white text-center text-xs"
+                : isOwnMessage
+                ? "bg-blue-500 text-white"
+                : "bg-white text-black"
+            }`}
+          >
+            {/* {!isSystemMessage &&  !isOwnMessage && <p className="text-sm font-bold">{sender}</p>} */}
+
+            <p className="">{message}</p>
+          </div>
+        </div>
+
         {timestamp && (
-          <p className="text-xs text-gray-400 mt-1 text-right">
+          <p className="text-[10px] text-gray-400 mt-1 text-right">
             {new Date(timestamp).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
             })}
           </p>
         )}
-      </div>
+      </section>
     </div>
   );
 }

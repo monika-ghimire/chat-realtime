@@ -4,6 +4,7 @@ import ChatForm from "../components/ChatForm";
 import ChatMessage from "../components/ChatMessage";
 import { useSocket } from "./hook/useSocket";
 import { useState, useRef, useEffect } from "react";
+import UserNameIcon from "@/components/UserNameIcon";
 
 export default function Home() {
   const [userName, setUserName] = useState("");
@@ -63,21 +64,24 @@ export default function Home() {
           </button>
         </div>
       ) : (
-        <div className="flex flex-col md:flex-row gap-4 w-full max-w-6xl">
+        <div className="flex flex-col md:flex-row gap-4 w-full max-w-6xl ">
           {/* Active Users Sidebar */}
-          <div className="w-full md:w-1/4 bg-gray-100 p-3 rounded-lg">
-            <h2 className="font-bold mb-2">Active Users</h2>
+          <div className="w-full md:w-1/4 bg-gray-100 p-3 rounded-lg h-[80vh]">
+            <h2 className="font-bold mb-2">Active Users </h2>
             {activeUsers
               .filter((u) => u.username !== userName)
               .map((user) => (
                 <div
                   key={user.socketId}
                   onClick={() => startPrivateChat(user.username)}
-                  className="cursor-pointer p-2 hover:bg-blue-200 rounded flex justify-between transition-colors duration-200"
+                  className="cursor-pointer p-2 hover:bg-blue-200 rounded flex justify-between items-center transition-colors duration-200"
                 >
-                  <span>{user.username}</span>
+                  <div className="flex items-center gap-2">
+                    <UserNameIcon name={user.username} />
+                    <span>{user.username}</span>
+                  </div>
                   {unreadCounts[user.username] ? (
-                    <span className="text-sm text-white bg-red-500 px-2 rounded">
+                    <span className="text-xs font-bold text-white bg-green-400 text-center h-[17px] w-[17px] rounded-full">
                       {unreadCounts[user.username]}
                     </span>
                   ) : null}
@@ -96,13 +100,16 @@ export default function Home() {
             {privateChatUser && (
               <button
                 onClick={backToMainRoom}
-                className="mb-2 px-3 py-1 text-white bg-blue-400 rounded"
+                className="mb-2 px-3 py-1 text-white bg-blue-400 rounded cursor-pointer"
               >
                 Back to Room
               </button>
             )}
 
-            <div className="h-[500px] overflow-y-auto p-4 mb-2 bg-gray-200 rounded-lg flex flex-col gap-2">
+            <div className="h-[60vh] overflow-y-auto p-4 mb-2 bg-gray-200 rounded-lg flex flex-col gap-2">
+              
+              {!privateChatUser && <h1 className="text-xs w-fit bg-green-200 text-green-500 py-2 px-8">Join Room :<strong> {room}</strong></h1> }
+
               {messages.map((msg, i) => (
                 <div
                   key={i}
@@ -127,7 +134,7 @@ export default function Home() {
               {/* Scroll anchor */}
               <div ref={messagesEndRef} />
             </div>
-
+               
             <ChatForm onSendMessage={sendMessage} />
           </div>
         </div>

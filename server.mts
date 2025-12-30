@@ -41,6 +41,18 @@ app.prepare().then(() => {
       socket.to(room).emit("user_joined", `${username} joined room`);
     });
 
+    socket.on("typing", () => {
+      const user = users[socket.id];
+      if (!user) return;
+      socket.to(user.room).emit("typing", user.username);
+    });
+
+    socket.on("stop_typing", () => {
+      const user = users[socket.id];
+      if (!user) return;
+      socket.to(user.room).emit("stop_typing", user.username);
+    });
+
     // Private message
     socket.on("private-message", ({ toSocketId, message }) => {
       const sender = users[socket.id]?.username;
@@ -55,7 +67,8 @@ app.prepare().then(() => {
 
       io.emit("active_users", Object.values(users));
 
-      if (user) socket.to(user.room).emit("user_left", `${user.username} left room`);
+      if (user)
+        socket.to(user.room).emit("user_left", `${user.username} left room`);
       console.log(`❌ user disconnected: ${socket.id}`);
     });
   });

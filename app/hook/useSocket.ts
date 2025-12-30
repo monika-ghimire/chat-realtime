@@ -17,6 +17,7 @@ export const useSocket = (userName: string, initialRoom: string = "") => {
     {}
   );
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
 
   useEffect(() => {
     socket.on("active_users", (users: ActiveUser[]) => setActiveUsers(users));
@@ -53,6 +54,24 @@ export const useSocket = (userName: string, initialRoom: string = "") => {
     };
   }, [privateChatUser]);
 
+  useEffect(() => {
+    socket.on("typing", (username: string) => {
+      setTypingUsers((prev) => {
+        if (!prev.includes(username)) return [...prev, username];
+        return prev;
+      });
+    });
+
+    socket.on("stop_typing", (username: string) => {
+      setTypingUsers((prev) => prev.filter((u) => u !== username));
+    });
+
+    return () => {
+      socket.off("typing");
+      socket.off("stop_typing");
+    };
+  }, []); 
+
   const joinRoom = (roomName: string) => {
     if (!roomName || !userName) return;
 
@@ -64,7 +83,9 @@ export const useSocket = (userName: string, initialRoom: string = "") => {
 
   const sendMessage = (message: string) => {
     if (privateChatUser) {
-      const targetUser = activeUsers.find((u) => u.username === privateChatUser);
+      const targetUser = activeUsers.find(
+        (u) => u.username === privateChatUser
+      );
       if (!targetUser) return;
 
       socket.emit("private-message", {
@@ -114,6 +135,7 @@ export const useSocket = (userName: string, initialRoom: string = "") => {
     privateChatUser,
     privateChats,
     unreadCounts,
+    typingUsers,
     joinRoom,
     sendMessage,
     startPrivateChat,

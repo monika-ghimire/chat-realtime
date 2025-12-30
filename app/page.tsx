@@ -16,11 +16,14 @@ export default function Home() {
     activeUsers,
     privateChatUser,
     unreadCounts,
+    typingUsers,
     joinRoom,
     sendMessage,
     startPrivateChat,
     backToMainRoom,
   } = useSocket(userName);
+
+  const otherTypingUsers = typingUsers.filter((u) => u !== userName);
 
   return (
     <div className="flex mt-24 justify-center w-full">
@@ -88,7 +91,7 @@ export default function Home() {
               </button>
             )}
 
-            <div className="h-[500px] overflow-y-auto p-4 mb-4 bg-gray-200 rounded-lg">
+            <div className="h-[500px] overflow-y-auto p-4 mb-2 bg-gray-200 rounded-lg">
               {messages.map((msg, i) => (
                 <ChatMessage
                   key={i}
@@ -97,6 +100,12 @@ export default function Home() {
                   isOwnMessage={msg.sender === userName}
                 />
               ))}
+              {otherTypingUsers.length > 0 && (
+                <div className="text-sm text-gray-500 italic">
+                  {otherTypingUsers.join(", ")}{" "}
+                  {otherTypingUsers.length > 1 ? "are" : "is"} typing...
+                </div>
+              )}
             </div>
 
             <ChatForm onSendMessage={sendMessage} />

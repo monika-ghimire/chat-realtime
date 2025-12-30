@@ -52,7 +52,7 @@ export default function Home() {
     <>
       <div className="flex mt-24 justify-center w-full">
         {!joined ? (
-          <div className="flex w-full max-x3xl flex-col items-center">
+          <div className="flex w-full max-w-3xl flex-col items-center">
             <h1 className="mb-4 text-2xl font-bold"> Join a Room</h1>
             <input
               type="text"
@@ -78,7 +78,7 @@ export default function Home() {
             </button>
           </div>
         ) : (
-          <div className="w-full mxa-w-3xl mx-auto">
+          <div className="w-full max-w-3xl mx-auto">
             <h1 className="mb-4 text-2xl font-bold">Room: {room}</h1>
             <div className="h-[500px] overflow-y-auto p-4 mb-4 bg-gray-200 border-1 rounded-lg">
               {messages.map((mgs, index) => (

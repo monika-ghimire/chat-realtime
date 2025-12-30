@@ -8,7 +8,7 @@ interface ChatMessage {
 }
 
 function ChatMessage({sender , message , isOwnMessage}:ChatMessage ) {
-    const isSystemMessage = sender === "sysyem"
+    const isSystemMessage = sender === "system"
   return (
     <div className={`flex ${
     isSystemMessage ? "justify-center" : isOwnMessage ? "justify-end" : "justify-start"}

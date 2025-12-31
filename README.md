@@ -17,6 +17,10 @@ http://localhost:3000
 🚀 Tech Stack
 Next.ts || React || TypeScript || Socket.io (Server + Client) || Tailwind CSS || Emoji Picker
 
+💡 For best experience, open the app in more than one tab, 
+You can join the same room for group chat
+or click on an active user to start a private chat.
+
 
 ## 📌 Project Overview
 

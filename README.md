@@ -8,9 +8,10 @@ Install Dependencies
 
 npm install
 
-Start Socket Server
+Start Socket Server and frontend 
 
 npm run dev:socket
+and open in tab
 http://localhost:3000
 
 

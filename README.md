@@ -17,13 +17,6 @@ http://localhost:3000
 🚀 Tech Stack
 Next.ts || React || TypeScript || Socket.io (Server + Client) || Tailwind CSS || Emoji Picker
 
-chat-realtime/
-├── app/                # Next.js App Router
-├── components/         # Reusable UI components
-├── lb/                 # Socket client logic
-├── server.mts          # Socket.io server
-├── package.json
-└── README.md
 
 ## 📌 Project Overview
 
